@@ -1,24 +1,27 @@
 # -*- coding: utf-8 -*-
 __doc__ = """
-A simple chat example using a CherryPy webserver.
+Log tailer publishing to websockers
 
+$ pip install ws4py
 $ pip install cherrypy
 
 Then run it as follow:
 
-$ python app.py
+$ python tailer.py logfile regex
 
-You will want to edit this file to change the
-ws_addr variable used by the websocket object to connect
-to your endpoint. Probably using the actual IP
-address of your machine.
+the URL will be http://hostname:9000/index.html
+Where the hostname is the hostname of the machine you are running tailer.py on
 """
+
+
+
 from Queue import Queue
 import threading
 import subprocess
 import random
 import os
 import re
+import sys
 import cherrypy
 
 from ws4py.server.cherrypyserver import WebSocketPlugin, WebSocketTool
@@ -26,8 +29,19 @@ from ws4py.websocket import WebSocket
 from ws4py.messaging import TextMessage
 
 # filename and regex should be args
-filename = "log.log"
-regex = ".*T[0-9]*\w.*"
+
+if len(sys.argv) <= 2:
+    print "Usage "
+    print "filename regex"
+    exit(1)
+
+
+filename = sys.argv[1]
+regex = sys.argv[2]
+
+
+#filename = "log.log"
+#regex = ".*T[0-9]*\w.*"
 
 cur_dir = os.path.normpath(os.path.abspath(os.path.dirname(__file__)))
 index_path = os.path.join(cur_dir, 'index.html')
@@ -39,13 +53,13 @@ class ChatWebSocketHandler(WebSocket):
     def received_message(self, m):
         cherrypy.engine.publish('websocket-broadcast', m)
 
-    def closed(self, code, reason="A client left the room without a proper explanation."):
-        cherrypy.engine.publish('websocket-broadcast', TextMessage(reason))
+#    def closed(self, code, reason="A client left the room without a proper explanation."):
+#        cherrypy.engine.publish('websocket-broadcast', TextMessage(reason))
 
 class ChatWebApp(object):
     @cherrypy.expose
     def index(self):
-        return index_page % { 'ws_addr': 'ws://localhost:9000/ws'}
+        return index_page 
 
     @cherrypy.expose
     def ws(self):
@@ -55,7 +69,8 @@ def publishLogs():
     while True:
         message = queue.get(True);
         cherrypy.engine.publish('websocket-broadcast', message) 
-        print "Published message: ", message
+#        print "Published message: ", message
+        queue.task_done
 
 
 def addLog(logLine):
@@ -77,8 +92,10 @@ def tailFile():
 
 matcher = re.compile(regex)
 tailThread = threading.Thread(target=tailFile)
+tailThread.setDaemon(True)
 tailThread.start()
 pubThread = threading.Thread(target=publishLogs)
+pubThread.setDaemon(True)
 pubThread.start()
 
 cherrypy.config.update({
@@ -105,6 +122,4 @@ cherrypy.quickstart(ChatWebApp(), '',
                         },
                     })
 
-print "Now to tail the file"
-tailFile()
 

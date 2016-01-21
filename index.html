@@ -7,14 +7,15 @@
       <link href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" rel="stylesheet">
       <style>
         body { padding-top: 20px; background-color: #333; color: #fff; }
-        #chat { width: 100%%; height: 300px;  color: #333; }
       </style>
 
       <script type="application/javascript" src="http://code.jquery.com/jquery-2.1.0.min.js"></script>
       <script type="application/javascript" src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+
       <script type="application/javascript">
         $(document).ready(function() {
-          var ws = new WebSocket("%(ws_addr)s");
+          var ws = new WebSocket("ws://"+window.location.hostname+":9000/ws");
+	  var topDiv  = document.getElementById("top ");
 
           window.onbeforeunload = function(e) {
             ws.close(1000, "");
@@ -24,28 +25,23 @@
             e.preventDefault();
           };
           ws.onmessage = function (evt) {
-             $("#chat").val($("#chat").val() + evt.data + "\n");
+             var newDiv = document.createElement("div");
+	     var newContent = document.createTextNode(evt.data);
+	     newDiv.appendChild(newContent);
+
+             document.body.insertBefore(newDiv, topDiv);
+             window.scrollTo(0,document.body.scrollHeight);
+
           };
           ws.onopen = function() {
           };
           ws.onclose = function(evt) {
-             $("#chat").val($("#chat").val() + "Connection closed by server: " + evt.code + " \'" + evt.reason + "\'\n");
           };
 
-          $("#send").click(function() {
-             console.log($("#message").val());
-             ws.send($("#message").val());
-             $("#message").val("");
-             return false;
-          });
         });
       </script>
     </head>
     <body>
-      <div class="container">
-        <div class="row">
-	  <textarea id="chat" readonly="readonly"></textarea>
-	</div>
-	
+      <div id="top" class="container">Start of log</div>
     </body>
 </html>
